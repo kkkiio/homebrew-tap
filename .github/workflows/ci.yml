@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check tap syntax
+        run: |
+          brew tap "${GITHUB_REPOSITORY}" "${GITHUB_WORKSPACE}"
+          brew test-bot --only-tap-syntax
