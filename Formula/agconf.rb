@@ -4,6 +4,11 @@ class Agconf < Formula
   license "Apache-2.0"
   head "https://github.com/kkkiio/agconf.git", branch: "main"
 
+  livecheck do
+    url :stable
+    strategy :github_latest
+  end
+
   depends_on arch: :arm64
   depends_on :macos
 
