@@ -8,12 +8,16 @@ class Agconf < Formula
   depends_on :macos
 
   def install
-    moon = Pathname(Dir.home)/".moon/bin/moon"
-    odie <<~EOS unless moon.executable?
-      MoonBit is required for a HEAD installation.
-      Install it from https://www.moonbitlang.com/download/ and retry.
-    EOS
-    system moon, "install", "--bin", bin, "."
+    if build.head?
+      moon = Pathname(Dir.home)/".moon/bin/moon"
+      odie <<~EOS unless moon.executable?
+        MoonBit is required for a HEAD installation.
+        Install it from https://www.moonbitlang.com/download/ and retry.
+      EOS
+      system moon, "install", "--bin", bin, "."
+    else
+      bin.install "agconf"
+    end
   end
 
   test do

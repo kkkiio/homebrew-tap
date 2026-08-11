@@ -1,0 +1,98 @@
+name: Update Formula
+
+on:
+  workflow_call:
+    inputs:
+      formula:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      url:
+        required: true
+        type: string
+      sha256:
+        required: true
+        type: string
+    secrets:
+      tap_token:
+        required: true
+
+permissions: {}
+
+jobs:
+  update:
+    runs-on: macos-26
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.tap_token }}
+      HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.tap_token }}
+      FORMULA: ${{ inputs.formula }}
+      VERSION: ${{ inputs.version }}
+      URL: ${{ inputs.url }}
+      SHA256: ${{ inputs.sha256 }}
+    steps:
+      - name: Check out tap automation
+        uses: actions/checkout@v6
+        with:
+          repository: kkkiio/homebrew-tap
+          token: ${{ secrets.tap_token }}
+          path: tap-automation
+          persist-credentials: false
+
+      - name: Validate release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${FORMULA}" =~ ^[a-z0-9][a-z0-9@+._-]*$ ]]
+          [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
+          [[ "${URL}" == https://github.com/kkkiio/*/releases/download/v${VERSION}/* ]]
+          [[ "${SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          curl --fail --silent --show-error --location --head "${URL}" >/dev/null
+
+      - name: Set up authenticated tap
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          brew tap kkkiio/tap
+
+      - name: Create Formula update pull request
+        shell: bash
+        run: |
+          set -euo pipefail
+          full_formula="kkkiio/tap/${FORMULA}"
+          stable_version="$(brew info --json=v2 "${full_formula}" | jq -r '.formulae[0].versions.stable // empty')"
+          if [[ -n "${stable_version}" ]]; then
+            brew bump-formula-pr \
+              --strict \
+              --no-browse \
+              --no-fork \
+              --version="${VERSION}" \
+              --url="${URL}" \
+              --sha256="${SHA256}" \
+              "${full_formula}"
+            exit 0
+          fi
+
+          tap_path="$(brew --repository kkkiio/tap)"
+          formula_path="${tap_path}/Formula/${FORMULA}.rb"
+          ruby "${GITHUB_WORKSPACE}/tap-automation/scripts/bootstrap-stable-formula.rb" \
+            "${formula_path}" "${URL}" "${VERSION}" "${SHA256}"
+          brew style "${full_formula}"
+          brew audit --strict --formula "${full_formula}"
+
+          branch="bump-${FORMULA}-${VERSION}"
+          git -C "${tap_path}" switch -c "${branch}"
+          git -C "${tap_path}" config user.name "github-actions[bot]"
+          git -C "${tap_path}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "${tap_path}" add "Formula/${FORMULA}.rb"
+          git -C "${tap_path}" commit -m "${FORMULA} ${VERSION}"
+          git -C "${tap_path}" push --set-upstream origin "${branch}"
+          gh pr create \
+            --repo kkkiio/homebrew-tap \
+            --base main \
+            --head "${branch}" \
+            --title "${FORMULA} ${VERSION}" \
+            --body "Update ${FORMULA} to ${VERSION}."
