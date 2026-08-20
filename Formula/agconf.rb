@@ -1,8 +1,8 @@
 class Agconf < Formula
   desc "Copy AI agent skills and prompts from local paths or GitHub"
   homepage "https://github.com/kkkiio/agconf"
-  url "https://github.com/kkkiio/agconf/releases/download/v0.3.0/agconf-0.3.0-darwin-arm64.tar.gz"
-  sha256 "efbc80b20208673383c74f9d0731ebbbd29199390ffaaebbbbe8f4f41d22d92c"
+  url "https://github.com/kkkiio/agconf/releases/download/v0.4.0/agconf-0.4.0-darwin-arm64.tar.gz"
+  sha256 "0adb6442b206ef389cf19efca2c4b036fa94290d2650378fae0799a71254799e"
   license "Apache-2.0"
   head "https://github.com/kkkiio/agconf.git", branch: "main"
 
